@@ -1,0 +1,246 @@
+import re
+from collections import Counter
+
+# Fréquences en français des lettres
+freq_fr = {
+    'A': 0.0842, 'B': 0.0106, 'C': 0.0334, 'D': 0.0366, 'E': 0.1715, 'F': 0.0106, 'G': 0.0097,
+    'H': 0.0077, 'I': 0.0753, 'J': 0.0054, 'K': 0.0012, 'L': 0.0577, 'M': 0.0297, 'N': 0.0713,
+    'O': 0.0531, 'P': 0.0295, 'Q': 0.0136, 'R': 0.0662, 'S': 0.0795, 'T': 0.0722, 'U': 0.0632,
+    'V': 0.0152, 'W': 0.0001, 'X': 0.0046, 'Y': 0.0030, 'Z': 0.0013
+}
+
+# Indice de coïncidence théorique pour le français
+IC_FRANCAIS = 0.074
+# Indice de coïncidence pour un texte aléatoire (1/26)
+IC_ALEATOIRE = 0.0385
+
+def clean_text(text):
+    """Nettoyer le texte pour ne garder que les lettres majuscules"""
+    return re.sub(r'[^A-Z]', '', text.upper())
+
+def encrypt_vigenere(text, key):
+    """Chiffrer un texte avec Vigenère"""
+    clean_text_input = clean_text(text)
+    encrypted = ''
+    key_index = 0
+    key_length = len(key)
+    
+    for char in clean_text_input:
+        key_char = key[key_index % key_length]
+        shift = ord(key_char) - ord('A')
+        encrypted_char = chr((ord(char) - ord('A') + shift) % 26 + ord('A'))
+        encrypted += encrypted_char
+        key_index += 1
+    
+    return encrypted
+
+def calculate_ic(text):
+    """Calculer l'indice de coïncidence d'un texte"""
+    n = len(text)
+    if n <= 1:
+        return 0
+    
+    # Compter les fréquences
+    freq = Counter(text)
+    
+    # Calculer l'indice de coïncidence
+    sum_freq = sum(count * (count - 1) for count in freq.values())
+    ic = sum_freq / (n * (n - 1))
+    
+    return ic
+
+def split_text(text, length):
+    """Diviser le texte en sous-textes selon la longueur de la clé"""
+    subtexts = [''] * length
+    for i, char in enumerate(text):
+        subtexts[i % length] += char
+    return subtexts
+
+def find_key_length_with_ic(text, max_length=20):
+    """Estimer la longueur de la clé en utilisant l'indice de coïncidence"""
+    print("\n--- Analyse par indice de coïncidence ---")
+    
+    # Calculer l'IC global du texte chiffré
+    global_ic = calculate_ic(text)
+    print(f"Indice de coïncidence global du texte chiffré: {global_ic:.4f}")
+    
+    # Résultats pour chaque longueur possible
+    results = []
+    
+    for length in range(1, max_length + 1):
+        # Diviser le texte en 'length' sous-textes
+        subtexts = split_text(text, length)
+        
+        # Calculer l'IC moyen pour cette longueur
+        ics = [calculate_ic(subtext) for subtext in subtexts]
+        average_ic = sum(ics) / length
+        
+        # Écart-type pour évaluer la cohérence
+        variance = sum((ic - average_ic) ** 2 for ic in ics) / length
+        std_dev = variance ** 0.5
+        
+        # Calculer l'écart avec l'IC français
+        ecart = abs(average_ic - IC_FRANCAIS)
+        
+        results.append((length, average_ic, std_dev, ecart))
+        print(f"Longueur {length}: IC moyen = {average_ic:.4f}, écart-type = {std_dev:.4f}, écart = {ecart:.4f}")
+    
+    # Trier d'abord par écart avec l'IC français (du plus petit au plus grand)
+    results.sort(key=lambda x: x[3])
+    
+    # Puis, en cas d'écarts très proches (différence < 0.005), préférer la longueur la plus petite
+    top_results = []
+    best_ecart = results[0][3] 
+    
+    for result in results:
+        length, ic, std_dev, ecart = result
+        if abs(ecart - best_ecart) < 0.005:  # Si l'écart est très proche du meilleur
+            top_results.append(result)
+        else:
+            break  # Arrêter dès qu'on trouve un écart significativement plus grand
+    
+    # Trier ces résultats proches par longueur (plus petit d'abord)
+    top_results.sort(key=lambda x: x[0])
+    
+    # Prendre la plus petite longueur parmi celles ayant un écart proche du minimum
+    best_length = top_results[0][0]
+    
+    print(f"\nMeilleures longueurs de clé selon l'IC (écarts proches et longueur minimale):")
+    print(f"Longueur retenue: {best_length}, IC = {top_results[0][1]:.4f}, écart = {top_results[0][3]:.4f}")
+    
+    return best_length
+
+def decrypt_chiffre(chiffre, key_char):
+    """Déchiffrer un chiffre avec une clé"""
+    decrypted = ''
+    key_val = ord(key_char) - ord('A')
+    for char in chiffre:
+        dec = (ord(char) - ord('A') - key_val) % 26
+        decrypted += chr(dec + ord('A'))
+    return decrypted
+
+def find_key_char(chiffre):
+    """Trouver le caractère de clé pour un chiffre en utilisant l'analyse de fréquence"""
+    best_chi2 = float('inf')
+    best_key = None
+    
+    # Tester chaque décalage possible
+    for key_val in range(26):
+        key_char = chr(key_val + ord('A'))
+        decrypted = decrypt_chiffre(chiffre, key_char)
+        
+        # Calculer le chi-carré pour ce décalage
+        chi2 = 0
+        n = len(decrypted)
+        
+        for char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+            expected = freq_fr[char] * n
+            observed = decrypted.count(char)
+            if expected > 0:
+                chi2 += (observed - expected) ** 2 / expected
+        
+        if chi2 < best_chi2:
+            best_chi2 = chi2
+            best_key = key_char
+    
+    return best_key
+
+def find_key(text, key_length):
+    """Trouver la clé complète en analysant chaque sous-texte"""
+    subtexts = split_text(text, key_length)
+    key = ''
+    for i, subtext in enumerate(subtexts):
+        key_char = find_key_char(subtext)
+        key += key_char
+        print(f"Caractère {i+1} de la clé: {key_char}")
+    return key
+
+
+
+
+
+def decrypt_vigenere(text, key):
+    """Déchiffrer un texte chiffré avec Vigenère"""
+    decrypted = ''
+    key_index = 0
+    key_length = len(key)
+    
+    for char in text:
+        key_char = key[key_index % key_length]
+        shift = ord(key_char) - ord('A')
+        decrypted_char = chr((ord(char) - ord('A') - shift) % 26 + ord('A'))
+        decrypted += decrypted_char
+        key_index += 1
+    
+    return decrypted
+
+def attack_vigenere_with_ic(ciphertext):
+    """Fonction principale d'attaque sur le chiffre de Vigenère - sans détection de répétition de clé"""
+    clean_cipher = clean_text(ciphertext)
+    
+    print("=== DÉBUT DE L'ATTAQUE PAR INDICE DE COÏNCIDENCE ===")
+    
+    # Estimation de la longueur de la clé par IC
+    key_length = find_key_length_with_ic(clean_cipher)
+    
+    print(f"\nLongueur de clé estimée selon l'IC et retenue: {key_length}")
+    
+    # Trouver la clé directement avec la longueur estimée
+    key = find_key(clean_cipher, key_length)
+    
+    # Déchiffrer avec cette clé
+    decrypted = decrypt_vigenere(clean_cipher, key)
+    
+    # Afficher les résultats finaux
+    print(f"\nClé finale retenue: {key}")
+    print(f"Longueur de la clé finale: {len(key)}")
+    
+    # Vérifier la qualité du déchiffrement
+    decrypted_ic = calculate_ic(decrypted)
+    print(f"Indice de coïncidence du texte déchiffré: {decrypted_ic:.4f}")
+    
+    if abs(decrypted_ic - IC_FRANCAIS) < 0.01:
+        print("Le texte déchiffré a un IC proche du français, ce qui est très positif.")
+    else:
+        print("Attention: l'IC du texte déchiffré n'est pas très proche de celui du français.")
+    
+    return key, decrypted
+
+# Exemple concret
+if __name__ == "__main__":
+    # Texte clair original en français
+    plain_text = """
+    La cryptographie est l'étude des techniques permettant de chiffrer des messages
+    c'est à dire de les rendre inintelligibles sans une action spécifique. Cette 
+    discipline comprend aussi l'analyse de la robustesse des méthodes de chiffrement
+    face aux tentatives pour les rendre inefficaces. Le chiffre de Vigenère est un 
+    système de chiffrement par substitution polyalphabétique, inventé par Blaise de
+    Vigenère au seizième siècle. Il utilise une clé qui détermine comment chaque lettre
+    du message sera chiffrée, contrairement au chiffre de César qui utilise un décalage
+    fixe. Le test de Kasiski est une méthode d'analyse qui permet de déterminer
+    la longueur de la clé utilisée dans le chiffre de Vigenère.
+    """
+    
+    # Clé de chiffrement
+    original_key = "CLE"
+    
+    print(f"Texte original: \n{plain_text[:100]}...\n")
+    print(f"Clé utilisée pour le chiffrement: {original_key}\n")
+    
+    # Chiffrer le texte
+    ciphertext = encrypt_vigenere(plain_text, original_key)
+    print(f"Texte chiffré: \n{ciphertext[:100]}...\n")
+    
+    # Lancer l'attaque
+    found_key, decrypted_text = attack_vigenere_with_ic(ciphertext)
+    
+    print("\n=== RÉSULTATS ===")
+    print(f"Clé originale: {original_key}")
+    print(f"Clé trouvée: {found_key}")
+    print(f"\nTexte déchiffré (premiers 200 caractères):\n{decrypted_text[:200]}...")
+    
+    # Vérifier le succès
+    if found_key == original_key:
+        print("\nSuccès ! La clé a été correctement retrouvée.")
+    else:
+        print("\nLa clé trouvée diffère de l'originale, mais le texte déchiffré peut quand même avoir du sens.")
