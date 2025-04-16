@@ -231,9 +231,9 @@ def main():
     st.title("Outil d'Analyse Cryptographique")
 
     analyse_choice = st.sidebar.radio("Choisissez le type d'analyse:",
-        ["Déchiffrement Mono-alphabétique (César)", "Déchiffrement Poly-alphabétique (Vigenère)"])
+        ["Cryptanalyse Mono-alphabétique (César)", "Cryptanalyse Poly-alphabétique (Vigenère)"])
 
-    if analyse_choice == "Cryptanalyse  Mono-alphabétique (César)":
+    if analyse_choice == "Cryptanalyse Mono-alphabétique (César)":
         st.header("Cryptanalyse de César")
         text_input = st.text_area("Texte chiffré:", height=150)
         
@@ -270,7 +270,7 @@ def main():
                 clean_cipher = clean_text(vigenere_input)
                 
                 if len(clean_cipher) < 20:
-                    st.error("Texte trop court pour une analyse fiable.")
+                    st.warning("Le texte est très court. Les résultats peuvent être moins fiables.")
                 else:
                     if manual_key:
                         # Utiliser la clé fournie manuellement
