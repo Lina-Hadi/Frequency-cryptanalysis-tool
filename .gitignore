@@ -1,13 +1,11 @@
 # Fichiers Python
-__pycache__/
-*.py[cod]
 
 # Environnement virtuel
 venv/
-.env
+env
 
 # Streamlit
-.streamlit/
+streamlit/
 
 # Fichiers système
-.DS_Store
+DS_Store
