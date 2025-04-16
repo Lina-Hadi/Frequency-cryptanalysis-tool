@@ -228,13 +228,13 @@ def estimate_key_length_by_ic(text, max_key_len=20):
 # ------------ Interface Streamlit ------------
 def main():
     st.set_page_config(page_title="Analyse Cryptographique", layout="wide")
-    st.title("Outil de Déchiffrement Cryptographique")
+    st.title("Outil d'Analyse Cryptographique")
 
     analyse_choice = st.sidebar.radio("Choisissez le type d'analyse:",
         ["Déchiffrement Mono-alphabétique (César)", "Déchiffrement Poly-alphabétique (Vigenère)"])
 
-    if analyse_choice == "Déchiffrement Mono-alphabétique (César)":
-        st.header("Déchiffrement de César")
+    if analyse_choice == "Cryptanalyse  Mono-alphabétique (César)":
+        st.header("Cryptanalyse de César")
         text_input = st.text_area("Texte chiffré:", height=150)
         
         if st.button("Analyser et Déchiffrer"):
@@ -254,7 +254,7 @@ def main():
                     st.text(f"Décalage {alt_decalage}: {alt_decrypted[:100]}..." if len(alt_decrypted) > 100 else alt_decrypted)
 
     else:
-        st.header("Déchiffrement Vigenère")
+        st.header("Cryptanalyse Vigenère")
         vigenere_input = st.text_area("Texte chiffré:", height=150)
         
         col1, col2 = st.columns(2)
