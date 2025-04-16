@@ -41,14 +41,6 @@ Copy/paste your ciphertext into the input area labeled "Enter your encrypted tex
 
 ---
 
-## 🎨 Interface Design
-
-- Background: Black (dark mode).
-- Sidebar: Dark Green (terminal effect).
-- Header: `Reserved @ Team CryptoMaster`.
-
----
-
 ## 🔧 Dependencies
 
 - Python 3.x
