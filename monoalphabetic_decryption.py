@@ -64,7 +64,7 @@ def decrypt(texte,decalage):
 
 
 
-# TEST
+# TES
 
 Text = "WKH HDJOH KDV ODQGHG"
 dec, frequences_txt = MonoAlphabetique(Text)
